@@ -1,5 +1,5 @@
-import { Theme, useTheme } from "@/contexts/ThemeContext";
-import { X } from "lucide-react";
+import { useTheme } from "@/contexts/ThemeContext";
+import { X, Sun, Moon } from "lucide-react";
 import { AI_MODELS, getAiModel, setAiModel } from "@/lib/api";
 import { useState } from "react";
 
@@ -8,27 +8,12 @@ interface SettingsDialogProps {
   onClose: () => void;
 }
 
-const themes: { id: Theme; label: string; emoji: string }[] = [
-  { id: "dark", label: "أسود", emoji: "⚫" },
-  { id: "light", label: "أبيض", emoji: "⚪" },
-  { id: "green", label: "أخضر", emoji: "🟢" },
-  { id: "olive", label: "زيتي", emoji: "🟫" },
-];
-
 const dialects = [
-  { id: "default", label: "فصحى / افتراضي" },
+  { id: "default", label: "سعودي عام" },
   { id: "qassimi", label: "قصيمي" },
   { id: "makkawi", label: "مكاوي" },
   { id: "jeddawi", label: "جداوي" },
   { id: "jizani", label: "جيزاني" },
-];
-
-const emotions = [
-  { id: "neutral", label: "محايد", emoji: "😐" },
-  { id: "friendly", label: "ودود", emoji: "😊" },
-  { id: "professional", label: "احترافي", emoji: "💼" },
-  { id: "funny", label: "مرح", emoji: "😄" },
-  { id: "caring", label: "حنون", emoji: "🤗" },
 ];
 
 const providerLabels: Record<string, string> = {
@@ -44,17 +29,16 @@ export function setDialectStorage(d: string) {
   localStorage.setItem("uxin-dialect", d);
 }
 export function getEmotion(): string {
-  return localStorage.getItem("uxin-emotion") || "neutral";
+  return localStorage.getItem("uxin-emotion") || "friendly";
 }
 export function setEmotionStorage(e: string) {
   localStorage.setItem("uxin-emotion", e);
 }
 
 const SettingsDialog = ({ open, onClose }: SettingsDialogProps) => {
-  const { theme, setTheme } = useTheme();
+  const { theme, toggleTheme } = useTheme();
   const [selectedModel, setSelectedModel] = useState(getAiModel());
   const [dialect, setDialect] = useState(getDialect());
-  const [emotion, setEmotion] = useState(getEmotion());
 
   if (!open) return null;
 
@@ -80,25 +64,27 @@ const SettingsDialog = ({ open, onClose }: SettingsDialogProps) => {
         </div>
 
         <div className="p-5 space-y-6">
-          {/* Theme */}
+          {/* Theme toggle - Sun/Moon */}
           <div>
             <h3 className="text-sm font-medium text-muted-foreground mb-3">🎨 المظهر</h3>
-            <div className="grid grid-cols-2 gap-2">
-              {themes.map((t) => (
-                <button
-                  key={t.id}
-                  onClick={() => setTheme(t.id)}
-                  className={`flex items-center gap-2 px-4 py-3 rounded-xl border transition-all text-sm ${
-                    theme === t.id
-                      ? "border-primary bg-primary/10 text-foreground"
-                      : "border-border hover:border-muted-foreground/30 text-muted-foreground"
-                  }`}
-                >
-                  <span>{t.emoji}</span>
-                  <span>{t.label}</span>
-                </button>
-              ))}
-            </div>
+            <button
+              onClick={toggleTheme}
+              className="w-full flex items-center justify-between px-4 py-3.5 rounded-xl border border-border hover:border-primary/30 bg-secondary/30 transition-all"
+            >
+              <div className="flex items-center gap-3">
+                {theme === "dark" ? (
+                  <Moon className="w-5 h-5 text-primary" />
+                ) : (
+                  <Sun className="w-5 h-5 text-amber-500" />
+                )}
+                <span className="text-sm font-medium">
+                  {theme === "dark" ? "الوضع الليلي 🌙" : "الوضع النهاري ☀️"}
+                </span>
+              </div>
+              <div className={`w-12 h-6 rounded-full relative transition-colors ${theme === "dark" ? "bg-primary" : "bg-amber-400"}`}>
+                <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${theme === "dark" ? "right-0.5" : "left-0.5"}`} />
+              </div>
+            </button>
           </div>
 
           {/* Dialect */}
@@ -116,27 +102,6 @@ const SettingsDialog = ({ open, onClose }: SettingsDialogProps) => {
                   }`}
                 >
                   {d.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Emotion */}
-          <div>
-            <h3 className="text-sm font-medium text-muted-foreground mb-3">💭 مشاعر الذكاء الاصطناعي</h3>
-            <div className="grid grid-cols-2 gap-2">
-              {emotions.map((e) => (
-                <button
-                  key={e.id}
-                  onClick={() => { setEmotion(e.id); setEmotionStorage(e.id); }}
-                  className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border transition-all text-sm ${
-                    emotion === e.id
-                      ? "border-primary bg-primary/10 text-foreground"
-                      : "border-border hover:border-muted-foreground/30 text-muted-foreground"
-                  }`}
-                >
-                  <span>{e.emoji}</span>
-                  <span>{e.label}</span>
                 </button>
               ))}
             </div>
@@ -168,6 +133,17 @@ const SettingsDialog = ({ open, onClose }: SettingsDialogProps) => {
                 </div>
               ))}
             </div>
+          </div>
+
+          {/* Robot info */}
+          <div className="p-4 rounded-xl bg-primary/5 border border-primary/20">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-lg">🤖</span>
+              <span className="font-medium text-sm">UXIN AI</span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              مساعدك الذكي المطور بواسطة سعود سعد الهذلي. يتكلم باللهجة السعودية ويساعدك في كل شيء!
+            </p>
           </div>
         </div>
       </div>

@@ -8,7 +8,9 @@ import SettingsDialog from "@/components/chat/SettingsDialog";
 import WelcomeScreen from "@/components/chat/WelcomeScreen";
 import AdminPanel from "@/components/chat/AdminPanel";
 import VoiceCallDialog from "@/components/chat/VoiceCallDialog";
+import StarsBackground from "@/components/chat/StarsBackground";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTheme } from "@/contexts/ThemeContext";
 import { motion, AnimatePresence } from "framer-motion";
 import { useIsMobile } from "@/hooks/use-mobile";
 import {
@@ -32,7 +34,8 @@ import { X } from "lucide-react";
 type Message = { role: "user" | "assistant"; content: string; image_url?: string };
 
 const Index = () => {
-  const { user, signOut } = useAuth();
+  const { user, signOut, displayName } = useAuth();
+  const { theme } = useTheme();
   const { toast } = useToast();
   const isMobile = useIsMobile();
   const [sidebarOpen, setSidebarOpen] = useState(!isMobile);
@@ -75,11 +78,7 @@ const Index = () => {
   };
 
   const autoTitleConversation = async (convId: string, userMessage: string, aiResponse: string) => {
-    // Generate a short title from the first exchange
     try {
-      let title = userMessage.slice(0, 35);
-      if (userMessage.length > 35) title += "...";
-      // Use the AI to generate a better title
       const titleMessages = [
         { role: "user" as const, content: `اكتب عنوان قصير جداً (أقل من 5 كلمات) لمحادثة بدأت بهذا السؤال: "${userMessage.slice(0, 100)}". اكتب العنوان فقط بدون أي شيء آخر.` }
       ];
@@ -167,7 +166,10 @@ const Index = () => {
   const handleFileUpload = async (file: File) => {
     if (!user) return;
     const convId = await ensureConversation(`📎 ${file.name}`);
-    const userMsg: Message = { role: "user", content: `📎 تحليل الملف: **${file.name}**` };
+    
+    // Show image preview if it's an image
+    const isImage = file.type.startsWith("image/");
+    const userMsg: Message = { role: "user", content: isImage ? `📷 صورة: **${file.name}**` : `📎 تحليل الملف: **${file.name}**` };
     setMessages((prev) => [...prev, userMsg]);
     await saveMessage(convId, user.id, "user", userMsg.content);
     setIsLoading(true);
@@ -177,6 +179,12 @@ const Index = () => {
       setIsLoading(false);
       toast({ title: "خطأ", description: uploadError || "فشل رفع الملف", variant: "destructive" });
       return;
+    }
+
+    // If it's an image, show it
+    if (isImage) {
+      const imgMsg: Message = { role: "user", content: `![${file.name}](${url})`, image_url: url };
+      setMessages((prev) => [...prev, imgMsg]);
     }
 
     const { analysis, error } = await analyzeFile(url, file.name, file.type);
@@ -231,7 +239,10 @@ const Index = () => {
   const closeMobileSidebar = () => { if (isMobile) setSidebarOpen(false); };
 
   return (
-    <div className="h-screen flex overflow-hidden" dir="rtl">
+    <div className="h-screen flex overflow-hidden relative" dir="rtl">
+      {/* Stars background for dark theme */}
+      {theme === "dark" && <StarsBackground />}
+
       {/* Mobile overlay */}
       <AnimatePresence>
         {isMobile && sidebarOpen && (
@@ -279,7 +290,7 @@ const Index = () => {
       </AnimatePresence>
 
       {/* Main content */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 relative z-10">
         <ChatHeader
           onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
           sidebarOpen={sidebarOpen}
@@ -287,12 +298,12 @@ const Index = () => {
           onOpenAdmin={() => setAdminOpen(true)}
           onSignOut={signOut}
           onStartCall={() => setVoiceCallOpen(true)}
-          userName={user?.user_metadata?.full_name || user?.email?.split("@")[0]}
+          userName={displayName}
           messages={messages.map(m => ({ role: m.role, content: m.content }))}
           conversationTitle={conversations.find(c => c.id === activeConvId)?.title}
         />
 
-        <div className="flex-1 overflow-y-auto scrollbar-thin bg-chat-bg">
+        <div className="flex-1 overflow-y-auto scrollbar-thin">
           {messages.length === 0 && !isLoading ? (
             <WelcomeScreen />
           ) : (

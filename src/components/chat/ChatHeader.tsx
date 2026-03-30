@@ -1,5 +1,6 @@
-import { Settings, PanelRightOpen, PanelRightClose, LogOut, Shield, Phone } from "lucide-react";
+import { Settings, PanelRightOpen, PanelRightClose, LogOut, Shield, Phone, Sun, Moon } from "lucide-react";
 import ConversationActions from "./ConversationActions";
+import { useTheme } from "@/contexts/ThemeContext";
 
 type Message = { role: "user" | "assistant"; content: string };
 
@@ -16,6 +17,8 @@ interface ChatHeaderProps {
 }
 
 const ChatHeader = ({ onToggleSidebar, sidebarOpen, onOpenSettings, onOpenAdmin, onSignOut, onStartCall, userName, messages = [], conversationTitle }: ChatHeaderProps) => {
+  const { theme, toggleTheme } = useTheme();
+
   return (
     <header className="h-14 border-b border-border flex items-center justify-between px-4" dir="rtl">
       <div className="flex items-center gap-3">
@@ -27,11 +30,19 @@ const ChatHeader = ({ onToggleSidebar, sidebarOpen, onOpenSettings, onOpenAdmin,
           <span className="text-primary">UXIN</span>{" "}
           <span className="text-foreground">AI</span>
         </h1>
+        <span className="text-[10px] text-muted-foreground bg-primary/10 px-2 py-0.5 rounded-full">🤖 روبوت</span>
       </div>
       <div className="flex items-center gap-1.5">
         {userName && <span className="text-xs text-muted-foreground hidden sm:block ml-2">{userName}</span>}
         
         {messages.length > 0 && <ConversationActions messages={messages} conversationTitle={conversationTitle} />}
+
+        {/* Theme toggle */}
+        <button onClick={toggleTheme}
+          className="p-2 rounded-lg hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"
+          title={theme === "dark" ? "الوضع النهاري" : "الوضع الليلي"}>
+          {theme === "dark" ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-primary" />}
+        </button>
 
         {onStartCall && (
           <button onClick={onStartCall}
