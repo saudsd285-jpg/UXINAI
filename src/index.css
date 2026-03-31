@@ -1,0 +1,160 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Cairo:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Space Dark theme (default) */
+    --background: 230 25% 7%;
+    --foreground: 210 40% 95%;
+    --card: 230 25% 10%;
+    --card-foreground: 210 40% 95%;
+    --popover: 230 25% 10%;
+    --popover-foreground: 210 40% 95%;
+    --primary: 217 91% 60%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 230 20% 14%;
+    --secondary-foreground: 210 30% 88%;
+    --muted: 230 20% 14%;
+    --muted-foreground: 215 20% 55%;
+    --accent: 199 89% 48%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 230 20% 16%;
+    --input: 230 20% 16%;
+    --ring: 217 91% 60%;
+    --radius: 0.75rem;
+
+    /* Chat specific */
+    --chat-user: 217 91% 60%;
+    --chat-user-foreground: 0 0% 100%;
+    --chat-ai: 230 25% 14%;
+    --chat-ai-foreground: 210 30% 90%;
+    --chat-bg: 230 25% 5%;
+
+    /* Sidebar */
+    --sidebar-background: 230 25% 8%;
+    --sidebar-foreground: 215 20% 75%;
+    --sidebar-primary: 217 91% 60%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 230 20% 13%;
+    --sidebar-accent-foreground: 210 30% 88%;
+    --sidebar-border: 230 20% 14%;
+    --sidebar-ring: 217 91% 60%;
+
+    font-family: 'Inter', 'Cairo', sans-serif;
+  }
+
+  /* Light theme */
+  [data-theme="light"] {
+    --background: 210 40% 98%;
+    --foreground: 230 25% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 230 25% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 230 25% 10%;
+    --primary: 217 91% 55%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 30% 93%;
+    --secondary-foreground: 230 20% 20%;
+    --muted: 210 30% 93%;
+    --muted-foreground: 215 15% 45%;
+    --accent: 199 89% 48%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 210 25% 88%;
+    --input: 210 25% 88%;
+    --ring: 217 91% 55%;
+
+    --chat-user: 217 91% 55%;
+    --chat-user-foreground: 0 0% 100%;
+    --chat-ai: 210 30% 96%;
+    --chat-ai-foreground: 230 20% 15%;
+    --chat-bg: 0 0% 100%;
+
+    --sidebar-background: 210 30% 96%;
+    --sidebar-foreground: 230 15% 30%;
+    --sidebar-primary: 217 91% 55%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 210 25% 92%;
+    --sidebar-accent-foreground: 230 20% 20%;
+    --sidebar-border: 210 25% 88%;
+    --sidebar-ring: 217 91% 55%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Stars animation */
+@keyframes twinkle {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 1; }
+}
+
+@keyframes float-up {
+  0% { transform: translateY(0) scale(1); opacity: 0.6; }
+  100% { transform: translateY(-100vh) scale(0.5); opacity: 0; }
+}
+
+@keyframes shooting-star {
+  0% { transform: translateX(0) translateY(0); opacity: 1; }
+  100% { transform: translateX(-300px) translateY(300px); opacity: 0; }
+}
+
+.star {
+  position: absolute;
+  border-radius: 50%;
+  background: white;
+  animation: twinkle ease-in-out infinite;
+}
+
+.shooting-star {
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  background: linear-gradient(to left, white, transparent);
+  animation: shooting-star 1.5s ease-out forwards;
+}
+
+@layer utilities {
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted)) transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 4px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted));
+    border-radius: 2px;
+  }
+
+  /* Safe area for mobile */
+  .safe-bottom {
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+  }
+}
+
+/* Mobile optimizations */
+@media (max-width: 640px) {
+  .prose {
+    font-size: 14px !important;
+  }
+  .prose pre {
+    font-size: 12px !important;
+  }
+}
