@@ -1,7 +1,10 @@
 import { useTheme } from "@/contexts/ThemeContext";
-import { X, Sun, Moon } from "lucide-react";
-import { AI_MODELS, getAiModel, setAiModel } from "@/lib/api";
-import { useState } from "react";
+import { X, Sun, Moon, Camera } from "lucide-react";
+import { AI_MODELS, getAiModel, setAiModel, updateProfile, uploadFile } from "@/lib/api";
+import { useState, useRef } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface SettingsDialogProps {
   open: boolean;
@@ -37,8 +40,13 @@ export function setEmotionStorage(e: string) {
 
 const SettingsDialog = ({ open, onClose }: SettingsDialogProps) => {
   const { theme, toggleTheme } = useTheme();
+  const { user, displayName } = useAuth();
+  const { toast } = useToast();
   const [selectedModel, setSelectedModel] = useState(getAiModel());
   const [dialect, setDialect] = useState(getDialect());
+  const [editName, setEditName] = useState(displayName);
+  const [saving, setSaving] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   if (!open) return null;
 
@@ -47,11 +55,42 @@ const SettingsDialog = ({ open, onClose }: SettingsDialogProps) => {
     setAiModel(modelId);
   };
 
+  const handleSaveName = async () => {
+    if (!user || !editName.trim()) return;
+    setSaving(true);
+    try {
+      await updateProfile(user.id, { display_name: editName.trim() });
+      await supabase.auth.updateUser({ data: { display_name: editName.trim(), full_name: editName.trim() } });
+      toast({ title: "تم تحديث الاسم ✅" });
+    } catch {
+      toast({ title: "خطأ", variant: "destructive" });
+    }
+    setSaving(false);
+  };
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+    setSaving(true);
+    try {
+      const { url, error } = await uploadFile(file, user.id);
+      if (error || !url) throw new Error(error);
+      await updateProfile(user.id, { avatar_url: url });
+      await supabase.auth.updateUser({ data: { avatar_url: url } });
+      toast({ title: "تم تحديث الصورة ✅" });
+    } catch {
+      toast({ title: "خطأ في رفع الصورة", variant: "destructive" });
+    }
+    setSaving(false);
+  };
+
   const grouped = AI_MODELS.reduce((acc, m) => {
     if (!acc[m.provider]) acc[m.provider] = [];
     acc[m.provider].push(m);
     return acc;
   }, {} as Record<string, typeof AI_MODELS>);
+
+  const avatarUrl = user?.user_metadata?.avatar_url;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm" dir="rtl">
@@ -64,7 +103,42 @@ const SettingsDialog = ({ open, onClose }: SettingsDialogProps) => {
         </div>
 
         <div className="p-5 space-y-6">
-          {/* Theme toggle - Sun/Moon */}
+          {/* Profile */}
+          <div>
+            <h3 className="text-sm font-medium text-muted-foreground mb-3">👤 الملف الشخصي</h3>
+            <div className="flex items-center gap-4 mb-3">
+              <button onClick={() => fileRef.current?.click()} className="relative group">
+                <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center overflow-hidden border-2 border-primary/30">
+                  {avatarUrl ? (
+                    <img src={avatarUrl} alt="avatar" className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-2xl">{displayName?.charAt(0) || "؟"}</span>
+                  )}
+                </div>
+                <div className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Camera className="w-5 h-5 text-white" />
+                </div>
+              </button>
+              <input ref={fileRef} type="file" accept="image/*" onChange={handleAvatarUpload} className="hidden" />
+              <div className="flex-1">
+                <input
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl bg-secondary border border-border text-sm outline-none focus:border-primary"
+                  placeholder="اسمك"
+                />
+                <button
+                  onClick={handleSaveName}
+                  disabled={saving || editName === displayName}
+                  className="mt-2 text-xs text-primary hover:underline disabled:opacity-40"
+                >
+                  {saving ? "جاري الحفظ..." : "حفظ الاسم"}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Theme toggle */}
           <div>
             <h3 className="text-sm font-medium text-muted-foreground mb-3">🎨 المظهر</h3>
             <button
@@ -72,11 +146,7 @@ const SettingsDialog = ({ open, onClose }: SettingsDialogProps) => {
               className="w-full flex items-center justify-between px-4 py-3.5 rounded-xl border border-border hover:border-primary/30 bg-secondary/30 transition-all"
             >
               <div className="flex items-center gap-3">
-                {theme === "dark" ? (
-                  <Moon className="w-5 h-5 text-primary" />
-                ) : (
-                  <Sun className="w-5 h-5 text-amber-500" />
-                )}
+                {theme === "dark" ? <Moon className="w-5 h-5 text-primary" /> : <Sun className="w-5 h-5 text-amber-500" />}
                 <span className="text-sm font-medium">
                   {theme === "dark" ? "الوضع الليلي 🌙" : "الوضع النهاري ☀️"}
                 </span>

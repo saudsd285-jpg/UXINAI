@@ -31,22 +31,21 @@ const ChatMessage = ({ role, content }: ChatMessageProps) => {
 
   if (isUser) {
     return (
-      <div className="flex items-start gap-3 px-4 py-3 animate-fade-in flex-row-reverse" dir="rtl">
+      <div className="flex items-start gap-3 px-3 sm:px-4 py-3 animate-fade-in flex-row-reverse" dir="rtl">
         <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 bg-primary">
           <User className="w-3.5 h-3.5 text-primary-foreground" />
         </div>
-        <div className="max-w-[80%] rounded-2xl rounded-tl-sm px-4 py-2.5 bg-primary text-primary-foreground text-sm">
+        <div className="max-w-[85%] sm:max-w-[80%] rounded-2xl rounded-tl-sm px-4 py-2.5 bg-primary text-primary-foreground text-sm">
           {content}
         </div>
       </div>
     );
   }
 
-  // Assistant - ChatGPT style: no bubble, wide content
   return (
-    <div className="px-4 py-5 animate-fade-in" dir="rtl">
+    <div className="px-3 sm:px-4 py-4 sm:py-5 animate-fade-in" dir="rtl">
       <div className="max-w-3xl mx-auto">
-        <div className="prose prose-sm max-w-none dark:prose-invert [&_p]:my-2 [&_p]:leading-7 [&_ul]:my-2 [&_ol]:my-2 [&_li]:my-1 [&_h1]:text-xl [&_h1]:font-bold [&_h1]:my-4 [&_h2]:text-lg [&_h2]:font-semibold [&_h2]:my-3 [&_h3]:text-base [&_h3]:font-semibold [&_h3]:my-2 [&_blockquote]:border-r-4 [&_blockquote]:border-primary/40 [&_blockquote]:bg-secondary/30 [&_blockquote]:px-4 [&_blockquote]:py-2 [&_blockquote]:rounded-lg [&_blockquote]:my-3 [&_strong]:text-primary [&_hr]:my-4 [&_hr]:border-border text-foreground text-[15px]">
+        <div className="prose prose-sm max-w-none dark:prose-invert [&_p]:my-2 [&_p]:leading-7 [&_ul]:my-2 [&_ol]:my-2 [&_li]:my-1 [&_h1]:text-xl [&_h1]:font-bold [&_h1]:my-4 [&_h2]:text-lg [&_h2]:font-semibold [&_h2]:my-3 [&_h3]:text-base [&_h3]:font-semibold [&_h3]:my-2 [&_blockquote]:border-r-4 [&_blockquote]:border-primary/40 [&_blockquote]:bg-secondary/30 [&_blockquote]:px-4 [&_blockquote]:py-2 [&_blockquote]:rounded-lg [&_blockquote]:my-3 [&_strong]:text-primary [&_hr]:my-4 [&_hr]:border-border text-foreground text-[15px] [&_a]:text-[hsl(217,91%,65%)] [&_a]:underline [&_a]:decoration-[hsl(217,91%,65%)]/30 [&_a:hover]:decoration-[hsl(217,91%,65%)]">
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
             components={{
@@ -64,6 +63,18 @@ const ChatMessage = ({ role, content }: ChatMessageProps) => {
               },
               pre({ children }) {
                 return <>{children}</>;
+              },
+              a({ href, children }) {
+                return (
+                  <a
+                    href={href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[hsl(217,91%,65%)] underline decoration-[hsl(217,91%,65%)]/30 hover:decoration-[hsl(217,91%,65%)] transition-colors inline-flex items-center gap-1"
+                  >
+                    {children} 🔗
+                  </a>
+                );
               },
               img({ src, alt }) {
                 return (

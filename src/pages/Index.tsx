@@ -9,6 +9,9 @@ import WelcomeScreen from "@/components/chat/WelcomeScreen";
 import AdminPanel from "@/components/chat/AdminPanel";
 import VoiceCallDialog from "@/components/chat/VoiceCallDialog";
 import StarsBackground from "@/components/chat/StarsBackground";
+import RatingDialog from "@/components/chat/RatingDialog";
+import SiteNotification from "@/components/chat/SiteNotification";
+import SiteShutdown from "@/components/chat/SiteShutdown";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { motion, AnimatePresence } from "framer-motion";
@@ -26,6 +29,9 @@ import {
   saveMessage,
   updateConversationTitle,
   getAiModel,
+  loadUserMemories,
+  saveUserMemory,
+  getSiteSettings,
 } from "@/lib/api";
 import { getDialect, getEmotion } from "@/components/chat/SettingsDialog";
 import { useToast } from "@/hooks/use-toast";
@@ -42,24 +48,36 @@ const Index = () => {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
   const [voiceCallOpen, setVoiceCallOpen] = useState(false);
+  const [ratingOpen, setRatingOpen] = useState(false);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConvId, setActiveConvId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [userMemories, setUserMemories] = useState<Record<string, string>>({});
+  const [siteShutdown, setSiteShutdown] = useState<any>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const messageCountRef = useRef(0);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isLoading]);
 
+  // Load site settings
+  useEffect(() => {
+    getSiteSettings().then((settings) => {
+      if (settings.site_shutdown?.enabled) {
+        setSiteShutdown(settings.site_shutdown);
+      }
+    });
+  }, []);
+
   useEffect(() => {
     if (!user) return;
     loadConversations().then((data) => {
-      setConversations(
-        data.map((c: any) => ({ id: c.id, title: c.title, createdAt: new Date(c.created_at) }))
-      );
+      setConversations(data.map((c: any) => ({ id: c.id, title: c.title, createdAt: new Date(c.created_at) })));
     });
+    loadUserMemories().then(setUserMemories);
   }, [user]);
 
   useEffect(() => {
@@ -68,6 +86,20 @@ const Index = () => {
       setMessages(data.map((m: any) => ({ role: m.role as "user" | "assistant", content: m.content, image_url: m.image_url })));
     });
   }, [activeConvId]);
+
+  // Show rating every 10 messages
+  useEffect(() => {
+    const userMsgCount = messages.filter(m => m.role === "user").length;
+    if (userMsgCount > 0 && userMsgCount % 10 === 0 && userMsgCount > messageCountRef.current) {
+      messageCountRef.current = userMsgCount;
+      setRatingOpen(true);
+    }
+  }, [messages]);
+
+  // If site is shut down, show shutdown screen
+  if (siteShutdown?.enabled) {
+    return <SiteShutdown message={siteShutdown.message} title={siteShutdown.title} />;
+  }
 
   const ensureConversation = async (title: string): Promise<string> => {
     if (activeConvId) return activeConvId;
@@ -96,6 +128,27 @@ const Index = () => {
         onError: () => {},
       });
     } catch {}
+  };
+
+  // Extract memories from AI response
+  const extractMemories = async (userMsg: string, aiResponse: string) => {
+    if (!user) return;
+    // Save user's name if mentioned
+    const nameMatch = userMsg.match(/(?:اسمي|انا|أنا)\s+(\S+)/);
+    if (nameMatch) {
+      const name = nameMatch[1];
+      setUserMemories(prev => ({ ...prev, user_name: name }));
+      await saveUserMemory("user_name", name, user.id);
+    }
+    // Save interests
+    const interestMatch = userMsg.match(/(?:أحب|احب|اهتم ب|هوايتي)\s+(.+?)(?:\.|$)/);
+    if (interestMatch) {
+      const interest = interestMatch[1].trim();
+      const existing = userMemories.interests || "";
+      const updated = existing ? `${existing}, ${interest}` : interest;
+      setUserMemories(prev => ({ ...prev, interests: updated }));
+      await saveUserMemory("interests", updated, user.id);
+    }
   };
 
   const handleStop = useCallback(() => {
@@ -150,6 +203,7 @@ const Index = () => {
           if (assistantContent) {
             await saveMessage(convId, user.id, "assistant", assistantContent);
             if (isFirstMessage) autoTitleConversation(convId, message, assistantContent);
+            extractMemories(message, assistantContent);
           }
         },
         onError: (error) => {
@@ -159,6 +213,7 @@ const Index = () => {
         signal: controller.signal,
         dialect: getDialect(),
         emotion: getEmotion(),
+        memories: userMemories,
       });
     }
   };
@@ -166,8 +221,6 @@ const Index = () => {
   const handleFileUpload = async (file: File) => {
     if (!user) return;
     const convId = await ensureConversation(`📎 ${file.name}`);
-    
-    // Show image preview if it's an image
     const isImage = file.type.startsWith("image/");
     const userMsg: Message = { role: "user", content: isImage ? `📷 صورة: **${file.name}**` : `📎 تحليل الملف: **${file.name}**` };
     setMessages((prev) => [...prev, userMsg]);
@@ -181,7 +234,6 @@ const Index = () => {
       return;
     }
 
-    // If it's an image, show it
     if (isImage) {
       const imgMsg: Message = { role: "user", content: `![${file.name}](${url})`, image_url: url };
       setMessages((prev) => [...prev, imgMsg]);
@@ -239,20 +291,19 @@ const Index = () => {
   const closeMobileSidebar = () => { if (isMobile) setSidebarOpen(false); };
 
   return (
-    <div className="h-screen flex overflow-hidden relative" dir="rtl">
-      {/* Stars background for dark theme */}
+    <div className="h-[100dvh] flex overflow-hidden relative" dir="rtl">
       {theme === "dark" && <StarsBackground />}
+
+      {/* Site Notification */}
+      <div className="fixed top-0 left-0 right-0 z-50">
+        <SiteNotification />
+      </div>
 
       {/* Mobile overlay */}
       <AnimatePresence>
         {isMobile && sidebarOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 z-30"
-            onClick={() => setSidebarOpen(false)}
-          />
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 z-30" onClick={() => setSidebarOpen(false)} />
         )}
       </AnimatePresence>
 
@@ -268,21 +319,15 @@ const Index = () => {
           >
             <div className="h-full relative">
               {isMobile && (
-                <button
-                  onClick={() => setSidebarOpen(false)}
-                  className="absolute top-3 left-3 z-10 p-1.5 rounded-lg bg-secondary hover:bg-secondary/80"
-                >
+                <button onClick={() => setSidebarOpen(false)}
+                  className="absolute top-3 left-3 z-10 p-1.5 rounded-lg bg-secondary hover:bg-secondary/80">
                   <X className="w-4 h-4" />
                 </button>
               )}
               <ConversationSidebar
-                conversations={conversations}
-                activeId={activeConvId}
-                onSelect={setActiveConvId}
-                onNew={handleNewConversation}
-                onDelete={handleDeleteConversation}
-                onRename={handleRenameConversation}
-                onClose={closeMobileSidebar}
+                conversations={conversations} activeId={activeConvId}
+                onSelect={setActiveConvId} onNew={handleNewConversation}
+                onDelete={handleDeleteConversation} onRename={handleRenameConversation} onClose={closeMobileSidebar}
               />
             </div>
           </motion.div>
@@ -317,20 +362,15 @@ const Index = () => {
           )}
         </div>
 
-        <ChatInput
-          onSend={handleSend}
-          onFileUpload={handleFileUpload}
-          onSearch={handleSearch}
-          isLoading={isLoading}
-          onStop={handleStop}
-        />
+        <ChatInput onSend={handleSend} onFileUpload={handleFileUpload} onSearch={handleSearch}
+          isLoading={isLoading} onStop={handleStop} />
       </div>
 
       <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} />
       <AdminPanel open={adminOpen} onClose={() => setAdminOpen(false)} />
+      <RatingDialog open={ratingOpen} onClose={() => setRatingOpen(false)} />
       <VoiceCallDialog
-        open={voiceCallOpen}
-        onClose={() => setVoiceCallOpen(false)}
+        open={voiceCallOpen} onClose={() => setVoiceCallOpen(false)}
         onMessageReceived={async (userText, aiText) => {
           if (!user) return;
           const convId = await ensureConversation(userText);

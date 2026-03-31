@@ -23,6 +23,48 @@ export const AI_MODELS = [
   { id: "google/gemini-2.5-flash", label: "Google Gemini Flash", provider: "google" },
 ];
 
+// ===== User Memories =====
+export async function loadUserMemories(): Promise<Record<string, string>> {
+  const { data } = await supabase
+    .from("user_memories")
+    .select("memory_key, memory_value");
+  if (!data) return {};
+  return data.reduce((acc, m) => ({ ...acc, [m.memory_key]: m.memory_value }), {} as Record<string, string>);
+}
+
+export async function saveUserMemory(key: string, value: string, userId: string) {
+  await supabase
+    .from("user_memories")
+    .upsert({ user_id: userId, memory_key: key, memory_value: value }, { onConflict: "user_id,memory_key" });
+}
+
+// ===== Site Settings =====
+export async function getSiteSettings(): Promise<Record<string, any>> {
+  const { data } = await supabase.from("site_settings").select("*");
+  if (!data) return {};
+  return data.reduce((acc, s) => ({ ...acc, [s.setting_key]: s.setting_value }), {} as Record<string, any>);
+}
+
+// ===== Ratings =====
+export async function loadRatings() {
+  const { data } = await supabase
+    .from("ratings")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(20);
+  return data || [];
+}
+
+export async function submitRating(userId: string, displayName: string, rating: number, comment: string) {
+  const { error } = await supabase.from("ratings").insert({
+    user_id: userId,
+    display_name: displayName,
+    rating,
+    comment,
+  });
+  if (error) throw error;
+}
+
 export async function streamChat({
   messages,
   onDelta,
@@ -31,6 +73,7 @@ export async function streamChat({
   signal,
   dialect,
   emotion,
+  memories,
 }: {
   messages: Message[];
   onDelta: (text: string) => void;
@@ -39,6 +82,7 @@ export async function streamChat({
   signal?: AbortSignal;
   dialect?: string;
   emotion?: string;
+  memories?: Record<string, string>;
 }) {
   try {
     const resp = await fetch(CHAT_URL, {
@@ -47,7 +91,7 @@ export async function streamChat({
         "Content-Type": "application/json",
         Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
       },
-      body: JSON.stringify({ messages, model: getAiModel(), dialect, emotion }),
+      body: JSON.stringify({ messages, model: getAiModel(), dialect, emotion, memories }),
       signal,
     });
 
@@ -188,5 +232,13 @@ export async function updateConversationTitle(id: string, title: string) {
     .from("conversations")
     .update({ title })
     .eq("id", id);
+  if (error) throw error;
+}
+
+export async function updateProfile(userId: string, updates: { display_name?: string; avatar_url?: string }) {
+  const { error } = await supabase
+    .from("profiles")
+    .update(updates)
+    .eq("user_id", userId);
   if (error) throw error;
 }
