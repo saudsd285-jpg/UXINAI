@@ -222,9 +222,6 @@ const Index = () => {
     if (!user) return;
     const convId = await ensureConversation(`📎 ${file.name}`);
     const isImage = file.type.startsWith("image/");
-    const userMsg: Message = { role: "user", content: isImage ? `📷 صورة: **${file.name}**` : `📎 تحليل الملف: **${file.name}**` };
-    setMessages((prev) => [...prev, userMsg]);
-    await saveMessage(convId, user.id, "user", userMsg.content);
     setIsLoading(true);
 
     const { url, error: uploadError } = await uploadFile(file, user.id);
@@ -234,10 +231,14 @@ const Index = () => {
       return;
     }
 
-    if (isImage) {
-      const imgMsg: Message = { role: "user", content: `![${file.name}](${url})`, image_url: url };
-      setMessages((prev) => [...prev, imgMsg]);
-    }
+    // Show user message with inline image preview
+    const userMsg: Message = {
+      role: "user",
+      content: isImage ? `📷 أرسلت صورة` : `📎 تحليل الملف: **${file.name}**`,
+      image_url: isImage ? url : undefined
+    };
+    setMessages((prev) => [...prev, userMsg]);
+    await saveMessage(convId, user.id, "user", userMsg.content, isImage ? url : undefined);
 
     const { analysis, error } = await analyzeFile(url, file.name, file.type);
     setIsLoading(false);
@@ -354,7 +355,7 @@ const Index = () => {
           ) : (
             <div className="py-4">
               {messages.map((msg, i) => (
-                <ChatMessage key={i} role={msg.role} content={msg.content} />
+                <ChatMessage key={i} role={msg.role} content={msg.content} imageUrl={msg.image_url} />
               ))}
               {isLoading && messages[messages.length - 1]?.role !== "assistant" && <TypingIndicator />}
               <div ref={chatEndRef} />
